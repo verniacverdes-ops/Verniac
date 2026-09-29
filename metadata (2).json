@@ -1,0 +1,6 @@
+{
+  "name": "Daftar Pertelaan Arsip 2026",
+  "description": "Aplikasi pengelolaan dan pencatatan Daftar Pertelaan Arsip Tahun 2026 berbasis tabel resmi dengan fitur pencarian, filter, dan cetak.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
