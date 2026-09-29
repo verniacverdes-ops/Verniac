@@ -10,8 +10,7 @@ import { createAuditRouter } from './backend/routes/audit.ts';
 import { createMasterRouter } from './backend/routes/master.ts';
 import { createUsersRouter } from './backend/routes/users.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = process.cwd();
 
 // FASE 9: folder fisik tempat semua lampiran PDF arsip disimpan.
 // Sebelumnya endpoint /documents/:id.pdf men-generate PDF dummy yang
@@ -22,8 +21,8 @@ const UPLOADS_DIR = path.join(__dirname, 'backend', 'uploads', 'arsip');
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
-
+ const PORT = Number(process.env.PORT) || 3000;
+  
   // Cek koneksi MySQL saat server start (tidak menghentikan server jika gagal)
   await testConnection();
 
