@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   MODE GELAP (dark mode)
+   Tailwind v4 defaultnya dark: mengikuti prefers-color-scheme OS. Supaya
+   bisa di-toggle manual lewat tombol (disimpan di localStorage), kita
+   pakai custom-variant berbasis class ".dark" di elemen <html>.
+   ===================================================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Retrofit: aplikasi ini dibangun dengan warna slate/white langsung
+   (bukan lewat util dark:), jadi supaya SELURUH halaman (termasuk
+   komponen yang belum sempat ditulis ulang satu-satu) otomatis ikut
+   gelap, warna-warna umum yang sama dipetakan ulang di sini. Selector
+   dua-kelas (.dark .bg-white) otomatis lebih spesifik daripada utility
+   Tailwind aslinya (.bg-white), jadi tidak perlu !important. */
+html.dark {
+  color-scheme: dark;
+}
+
+.dark .bg-white { background-color: #1e2530; }
+.dark .bg-slate-50 { background-color: #161c26; }
+.dark .bg-slate-100 { background-color: #232b38; }
+.dark .bg-slate-200 { background-color: #2d3646; }
+
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #a0aec0; }
+.dark .text-slate-500 { color: #8b96a8; }
+.dark .text-slate-400 { color: #6b7688; }
+.dark .text-slate-300 { color: #4b5563; }
+
+.dark .border-slate-100 { border-color: #232b38; }
+.dark .border-slate-200 { border-color: #313b4c; }
+.dark .border-slate-300 { border-color: #3f4a5c; }
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #232b38; }
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #313b4c; }
+
+/* Latar terang berwarna (badge/alert) — jangan diputihkan, cukup
+   digelapkan supaya kontras dengan teks tetap terjaga. */
+.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.16); }
+.dark .bg-blue-100 { background-color: rgba(59, 130, 246, 0.24); }
+.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.16); }
+.dark .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.24); }
+.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.16); }
+.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.24); }
+.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.16); }
+.dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.24); }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.16); }
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.16); }
+.dark .bg-amber-100 { background-color: rgba(245, 158, 11, 0.24); }
+
+/* Input & textarea polos (banyak tidak diberi bg- eksplisit, ikut putih bawaan browser) */
+.dark input, .dark textarea, .dark select {
+  background-color: #1e2530;
+  color: #e2e8f0;
+}
+
+/* Scrollbar biar tidak menyilaukan di halaman gelap */
+.dark ::-webkit-scrollbar-track { background: #161c26; }
+.dark ::-webkit-scrollbar-thumb { background: #3f4a5c; border-radius: 9999px; }
+
+
+/* Hover di mode gelap (varian hover: tidak ikut terpetakan oleh aturan di atas) */
+.dark .hover\:bg-slate-50:hover { background-color: #232b38; }
+.dark .hover\:bg-slate-100:hover { background-color: #2d3646; }
+.dark .hover\:bg-blue-50:hover { background-color: rgba(59, 130, 246, 0.2); }
+.dark .hover\:bg-blue-100:hover { background-color: rgba(59, 130, 246, 0.3); }
+.dark .hover\:bg-rose-50:hover { background-color: rgba(244, 63, 94, 0.2); }
+.dark .hover\:bg-rose-100:hover { background-color: rgba(244, 63, 94, 0.3); }

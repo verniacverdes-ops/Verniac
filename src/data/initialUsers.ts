@@ -1,0 +1,58 @@
+import { User } from '../types';
+
+export const DEFAULT_USERS: User[] = [
+  {
+    id: 'user-000',
+    name: 'Ir. H. Gunawan (Super Admin)',
+    username: 'superadmin',
+    email: 'superadmin@arsip2026.go.id',
+    role: 'super_admin',
+    unitKerja: 'Kepala Pusat Teknologi & Sistem Kearsipan',
+    avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'user-001',
+    name: 'Administrator Utama',
+    username: 'admin',
+    email: 'admin@arsip2026.go.id',
+    role: 'admin',
+    unitKerja: 'Bagian Tata Usaha & Kearsipan',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'user-002',
+    name: 'Supriyadi, S.AP (Arsiparis)',
+    username: 'arsiparis',
+    email: 'arsiparis@arsip2026.go.id',
+    role: 'arsiparis',
+    unitKerja: 'Depo Arsip Utama',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'user-004',
+    name: 'Rina Wati, A.Md (Operator Entry)',
+    username: 'operator',
+    email: 'operator@arsip2026.go.id',
+    role: 'operator',
+    unitKerja: 'Subbag Pengolahan Berkas',
+    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'user-003',
+    name: 'Pegawai / Tamu Viewer',
+    username: 'viewer',
+    email: 'viewer@arsip2026.go.id',
+    role: 'viewer',
+    unitKerja: 'Semua Subbagian Unit Kerja',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'user-005',
+    name: 'Drs. Herman, M.Si (Auditor Kearsipan)',
+    username: 'auditor',
+    email: 'auditor@arsip2026.go.id',
+    role: 'auditor',
+    unitKerja: 'Inspektorat / Tim Audit Kearsipan',
+    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80',
+  },
+];

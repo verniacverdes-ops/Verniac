@@ -1,0 +1,93 @@
+import { ArchiveItem, UnitInfo } from '../types';
+
+export const INITIAL_UNIT_INFO: UnitInfo = {
+  namaInstansi: 'PEMERINTAH PROVINSI / KEMENTERIAN DAERAH',
+  unitKerja: 'DINAS KEARSIPAN DAN PERPUSTAKAAN',
+  penciptaArsip: 'SECRETARIAT UTAMA / BAGIAN HUKUM & ORGANISASI',
+  tahun: '2026',
+  lokasiGedungUtama: 'Depo Arsip Sentral Gedung B',
+  namaPetugas: 'Drs. Supriyadi, M.Si.',
+  jabatanPetugas: 'Arsiparis Ahli Muda',
+  namaPimpinan: 'H. Ahmad Subagyo, S.H., M.H.',
+  jabatanPimpinan: 'Kepala Bagian Umum & Kepegawaian',
+};
+
+export const SAMPLE_ARCHIVE_ITEMS: ArchiveItem[] = [
+  {
+    id: 'arsip-2026-001',
+    nomorKeputusan: '188.4/01/SK/2026',
+    tanggal: '2026-01-05',
+    perihal: 'Keputusan Kepala Dinas tentang Penetapan Tim Kerja Pengelolaan Kearsipan dan Retensi Arsip Tahun 2026',
+    noDus: 'DUS-01/2026',
+    lokasiPenyimpanan: 'Depo Arsip Utama - Rak A1 - Baris 2',
+    keterangan: 'Dokumen Asli, 1 Berkas (12 Lembar)',
+    unitPengolah: 'Bagian Hukum & Organisasi',
+    unitId: 'unit-01',
+    kategoriArsip: 'Inaktif',
+    kategoriId: 'kat-01',
+    createdAt: '2026-01-05T08:30:00Z',
+    updatedAt: '2026-01-05T08:30:00Z',
+  },
+  {
+    id: 'arsip-2026-002',
+    nomorKeputusan: '050/14/KPTS/2026',
+    tanggal: '2026-01-12',
+    perihal: 'Keputusan Penetapan Program Kerja dan Anggaran Operasional Kearsipan Semester I Tahun Anggaran 2026',
+    noDus: 'DUS-01/2026',
+    lokasiPenyimpanan: 'Depo Arsip Utama - Rak A1 - Baris 2',
+    keterangan: 'Dokumen Asli + Lampiran DIPA',
+    unitPengolah: 'Bagian Perencanaan & Keuangan',
+    unitId: 'unit-02',
+    kategoriArsip: 'Inaktif',
+    kategoriId: 'kat-01',
+    createdAt: '2026-01-12T09:15:00Z',
+    updatedAt: '2026-01-12T09:15:00Z',
+  },
+  {
+    id: 'arsip-2026-003',
+    nomorKeputusan: '800/28/SK-MUT/2026',
+    tanggal: '2026-02-02',
+    perihal: 'Keputusan Mutasi dan Penempatan Pegawai Pelaksana Cadangan Pengelola Depo Arsip Wilayah I',
+    noDus: 'DUS-02/2026',
+    lokasiPenyimpanan: 'Depo Arsip Utama - Rak A1 - Baris 3',
+    keterangan: 'Dokumen Asli + Lampiran SK',
+    unitPengolah: 'Subbag Kepegawaian & Umum',
+    unitId: 'unit-03',
+    kategoriArsip: 'Inaktif',
+    kategoriId: 'kat-01',
+    createdAt: '2026-02-02T10:00:00Z',
+    updatedAt: '2026-02-02T10:00:00Z',
+  },
+  {
+    id: 'arsip-2026-004',
+    nomorKeputusan: '028/45/SK-BMN/2026',
+    tanggal: '2026-02-18',
+    perihal: 'Keputusan Hasil Inventarisasi dan Penghapusan Barang Milik Negara (BMN) Peralatan Komputer Depo',
+    noDus: 'DUS-02/2026',
+    lokasiPenyimpanan: 'Depo Arsip Utama - Rak A1 - Baris 3',
+    keterangan: 'Dokumen Asli & Berita Acara',
+    unitPengolah: 'Subbag Kepegawaian & Umum', // diperbaiki: sebelumnya 'Subbag Perlengkapan' tidak ada di master data
+    unitId: 'unit-03',
+    kategoriArsip: 'Permanen',
+    kategoriId: 'kat-03',
+    createdAt: '2026-02-18T14:20:00Z',
+    updatedAt: '2026-02-18T14:20:00Z',
+  },
+  {
+    id: 'arsip-2026-005',
+    nomorKeputusan: '045/88/KPTS-SOP/2026',
+    tanggal: '2026-03-10',
+    perihal: 'Keputusan Penetapan Standar Operasional Prosedur (SOP) Digitalisasi dan Penyimpanan Arsip Inaktif',
+    noDus: 'DUS-03/2026',
+    lokasiPenyimpanan: 'Depo Arsip Utama - Rak A2 - Baris 1',
+    keterangan: 'Dokumen Salinan Sah + Manual Book',
+    unitPengolah: 'Bagian Tata Usaha & Kearsipan', // diperbaiki: sebelumnya terpotong, tidak match persis dgn master data
+    unitId: 'unit-04',
+    kategoriArsip: 'Vital',
+    kategoriId: 'kat-02',
+    createdAt: '2026-03-10T11:45:00Z',
+    updatedAt: '2026-03-10T11:45:00Z',
+  }
+];
+
+export const INITIAL_ARCHIVE_ITEMS: ArchiveItem[] = [];
