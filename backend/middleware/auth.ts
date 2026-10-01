@@ -3,7 +3,7 @@
 // endpoint Express. Dipakai oleh backend/routes/*.ts.
 // =====================================================================
 import type { Request, Response, NextFunction } from "express";
-import type { RowDataPacket } from "mysql2/promise";
+import type { RowDataPacket } from "../config/database";
 import { verifyToken, type AuthTokenPayload } from "../config/auth";
 import { pool } from "../config/database";
 

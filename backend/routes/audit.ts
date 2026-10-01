@@ -10,7 +10,7 @@
 // penyimpanan permanen di kedua ujungnya.
 // =====================================================================
 import { Router, type Request, type Response } from "express";
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, RowDataPacket } from "../config/database";
 import { requireAuth } from "../middleware/auth";
 
 interface AuditLogRow extends RowDataPacket {

@@ -1,66 +1,106 @@
-// Koneksi MySQL + mapper baris tabel `arsip` -> ArchiveItem (src/types.ts).
-// Skema database ada di: database/daftar-pertelaan-arsip-2026.sql
+// Koneksi PostgreSQL (Supabase) + mapper baris tabel `arsip` -> ArchiveItem.
+// Skema database: database/supabase-schema-dan-data.sql
 //
-// Catatan (FASE 1 revisi): tabel `arsip` sekarang punya kolom relasional
-// tambahan unit_id -> master_unit, kategori_id -> master_kategori, dan
-// dus_id -> master_dus (semuanya nullable, FK ON DELETE SET NULL).
-// Kolom teks lama (unit_pengolah, kategori_arsip, no_dus) TETAP dipakai
-// di bawah ini agar frontend yang sudah ada tidak rusak. rowToArchiveItem()
-// belum memetakan unit_id/kategori_id/dus_id ke response JSON — itu
-// menyusul di fase berikutnya begitu endpoint master data (FASE 11) siap.
+// Aplikasi ini awalnya memakai MySQL (mysql2). Supaya semua route lama
+// (arsip, auth, users, master, audit) tidak perlu ditulis ulang, file ini
+// menyediakan `pool` dengan antarmuka yang sama seperti mysql2:
+//   - placeholder `?` otomatis diubah menjadi $1, $2, ...
+//   - backtick MySQL dibuang
+//   - hasil SELECT  -> [rows, fields]
+//   - hasil INSERT/UPDATE/DELETE -> [{ affectedRows }, undefined]
+//   - kode error PostgreSQL dipetakan ke kode MySQL yang dipakai route
+//     (ER_DUP_ENTRY, ER_NO_REFERENCED_ROW_2, ER_ROW_IS_REFERENCED_2)
 import dotenv from "dotenv";
-import mysql, { type RowDataPacket } from "mysql2/promise";
+import pg from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import type { ArchiveItem } from "../../src/types";
 
-// FASE 2: path .env.local dihitung ABSOLUT dari lokasi file ini
-// (backend/config/database.ts -> naik 2 folder -> root project),
-// BUKAN relatif ke process.cwd(). Sebelumnya pakai path relatif
-// (".env.local") yang cuma kebetulan jalan kalau "npm run dev"
-// dieksekusi persis dari root project. Kalau server.ts suatu saat
-// dijalankan dari direktori lain (mis. lewat dist/server.cjs hasil
-// build, atau dari proses lain yang meng-import file ini), path
-// relatif itu akan gagal menemukan .env.local secara diam-diam dan
-// semua kredensial DB jatuh ke default hardcoded di bawah.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const envLocalPath = path.resolve(__dirname, "..", "..", ".env.local");
+dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env.local") });
 
-const dotenvResult = dotenv.config({
-  path: envLocalPath,
-});
+// Tipe hasil dibuat sama seperti mysql2 (dateStrings + angka biasa):
+pg.types.setTypeParser(1082, (v) => v); // DATE      -> "YYYY-MM-DD"
+pg.types.setTypeParser(1114, (v) => v.replace(/\.\d+$/, "")); // TIMESTAMP -> "YYYY-MM-DD HH:MM:SS"
+pg.types.setTypeParser(20, (v) => parseInt(v, 10)); // COUNT(*) (bigint) -> number
 
-if (dotenvResult.error) {
-  console.warn(
-    `[MySQL] Tidak bisa membaca .env.local di "${envLocalPath}" (${dotenvResult.error.message}). ` +
-      `Memakai nilai default (host=localhost, user=root, password=kosong, db=daftar-pertelaan-arsip-2026).`
-  );
+export type RowDataPacket = Record<string, any>;
+export interface Pool {
+  query<T = any>(sql: string, params?: any[]): Promise<[T, any]>;
 }
 
-// =====================================================================
-// Koneksi pool MySQL
-// =====================================================================
-export const pool = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "daftar-pertelaan-arsip-2026",
+const connectionString = process.env.DATABASE_URL;
+const isLocal = !connectionString || /(localhost|127\.0\.0\.1)/.test(connectionString);
 
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  dateStrings: true,
-});
+const rawPool = new pg.Pool(
+  connectionString
+    ? {
+        connectionString,
+        // Supabase mewajibkan SSL. Pada koneksi lokal SSL dimatikan.
+        ssl: isLocal ? undefined : { rejectUnauthorized: false },
+        // Di serverless (Vercel) tiap instance cukup memegang sedikit koneksi.
+        max: process.env.VERCEL ? 3 : 10,
+      }
+    : {
+        host: process.env.DB_HOST || "localhost",
+        port: Number(process.env.DB_PORT) || 5432,
+        user: process.env.DB_USER || "postgres",
+        password: process.env.DB_PASSWORD || "",
+        database: process.env.DB_NAME || "postgres",
+        max: 10,
+      }
+);
 
-// FASE 2: nama database yang WAJIB terhubung. Dipakai testConnection()
-// untuk memverifikasi pool benar-benar nyambung ke database yang benar,
-// bukan cuma "server MySQL menyala".
-const EXPECTED_DB_NAME = process.env.DB_NAME || "daftar-pertelaan-arsip-2026";
+/** `?` -> $1..$n dan buang backtick, dengan melewati isi string literal. */
+export function translateSql(sql: string): string {
+  let out = "";
+  let n = 0;
+  let inStr = false;
+  for (const ch of sql) {
+    if (ch === "'") inStr = !inStr;
+    if (!inStr && ch === "`") continue;
+    if (!inStr && ch === "?") {
+      out += "$" + ++n;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
 
-// Tabel yang dibuat oleh database/daftar-pertelaan-arsip-2026.sql (FASE 1).
-// Dipakai testConnection() untuk mendeteksi kalau schema.sql belum diimport.
+function mapPgError(err: any) {
+  if (!err || !err.code) return err;
+  err.pgCode = err.code;
+  if (err.code === "23505") err.code = "ER_DUP_ENTRY";
+  else if (err.code === "23503") {
+    err.code = /still referenced/i.test(err.detail || "") ? "ER_ROW_IS_REFERENCED_2" : "ER_NO_REFERENCED_ROW_2";
+  } else if (err.code === "23514") err.code = "ER_CHECK_CONSTRAINT_VIOLATED";
+  return err;
+}
+
+export const pool: Pool = {
+  async query(sql: string, params?: any[]) {
+    try {
+      const res = await rawPool.query(translateSql(sql), params);
+      if (res.command === "SELECT") return [res.rows as any, res.fields];
+      return [{ affectedRows: res.rowCount ?? 0, insertId: 0, rows: res.rows } as any, undefined];
+    } catch (err) {
+      throw mapPgError(err);
+    }
+  },
+};
+
+/** Dipakai script db:init (menjalankan file .sql berisi banyak statement). */
+export async function runSqlScript(sqlText: string): Promise<void> {
+  await rawPool.query(sqlText);
+}
+
+export async function closePool(): Promise<void> {
+  await rawPool.end();
+}
+
+// Tabel yang dibuat oleh database/supabase-schema-dan-data.sql
 const REQUIRED_TABLES = [
   "arsip",
   "master_kategori",
@@ -69,14 +109,10 @@ const REQUIRED_TABLES = [
   "master_ruang",
   "master_rak",
   "master_dus",
-  "users", // FASE 7: Login & Role -> Backend
-  "audit_logs", // FASE 8: Audit Log -> MySQL
-  "token_blacklist", // FASE 7 (revisi): Logout JWT Blacklist
+  "users",
+  "audit_logs",
+  "token_blacklist",
 ];
-
-// =====================================================================
-// FASE 2: Diagnostik koneksi (dipakai testConnection() & /api/db-test)
-// =====================================================================
 
 export interface DbConnectionStatus {
   connected: boolean;
@@ -85,81 +121,44 @@ export interface DbConnectionStatus {
   error?: string;
 }
 
-/**
- * FASE 2: Tes koneksi menyeluruh (bukan sekadar ping).
- * Mengecek 3 hal:
- *   1. Koneksi ke MySQL berhasil dibuka.
- *   2. Nama database aktif (SELECT DATABASE()) sesuai DB_NAME di .env.local.
- *   3. Semua tabel dari database/daftar-pertelaan-arsip-2026.sql sudah ada
- *      (artinya schema.sql sudah diimport, bukan cuma database kosong).
- */
+/** Tes koneksi menyeluruh: bisa konek + semua tabel sudah ada. */
 export async function checkDatabaseConnection(): Promise<DbConnectionStatus> {
   try {
-    const connection = await pool.getConnection();
-
+    const client = await rawPool.connect();
     try {
-      const [dbRows] = await connection.query<any[]>("SELECT DATABASE() AS db");
-      const activeDb = dbRows[0]?.db as string | null;
-
-      const [tableRows] = await connection.query<any[]>("SHOW TABLES");
-      const existingTables = new Set(
-        tableRows.map((r: any) => Object.values(r)[0] as string)
+      const db = (await client.query("SELECT current_database() AS db")).rows[0]?.db as string | undefined;
+      const t = await client.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
       );
-      const missingTables = REQUIRED_TABLES.filter((t) => !existingTables.has(t));
-
-      if (activeDb !== EXPECTED_DB_NAME) {
-        return {
-          connected: true,
-          database: activeDb ?? undefined,
-          missingTables,
-          error: `Terhubung ke MySQL, tapi database aktif ("${activeDb}") tidak sama dengan DB_NAME di .env.local ("${EXPECTED_DB_NAME}").`,
-        };
-      }
-
-      return { connected: true, database: activeDb ?? undefined, missingTables };
+      const existing = new Set(t.rows.map((r: any) => r.table_name as string));
+      return {
+        connected: true,
+        database: db,
+        missingTables: REQUIRED_TABLES.filter((x) => !existing.has(x)),
+      };
     } finally {
-      connection.release();
+      client.release();
     }
   } catch (error: any) {
-    return {
-      connected: false,
-      missingTables: REQUIRED_TABLES,
-      error: error?.message || String(error),
-    };
+    return { connected: false, missingTables: REQUIRED_TABLES, error: error?.message || String(error) };
   }
 }
 
 export async function testConnection(): Promise<boolean> {
-  try {
-    const status = await checkDatabaseConnection();
-
-    if (!status.connected) {
-      console.error("[MySQL] Koneksi database gagal:", status.error);
-      return false;
-    }
-
-    if (status.error) {
-      // Terhubung, tapi ke database yang salah.
-      console.error("[MySQL]", status.error);
-      return false;
-    }
-
-    if (status.missingTables.length > 0) {
-      console.warn(
-        `[MySQL] Terhubung ke database "${status.database}", tapi tabel berikut belum ada: ${status.missingTables.join(", ")}.` +
-          ` Jalankan "npm run db:init" atau import database/daftar-pertelaan-arsip-2026.sql lewat phpMyAdmin.`
-      );
-      // Tetap dianggap "tersambung" karena koneksi MySQL-nya sendiri berhasil;
-      // yang bermasalah adalah schema-nya belum diimport.
-      return true;
-    }
-
-    console.log(`[MySQL] Koneksi database berhasil. Database aktif: "${status.database}". Semua tabel FASE 1 terdeteksi.`);
-    return true;
-  } catch (error) {
-    console.error("[MySQL] Koneksi database gagal:", error);
+  const status = await checkDatabaseConnection();
+  if (!status.connected) {
+    console.error("[Postgres] Koneksi database gagal:", status.error);
     return false;
   }
+  if (status.missingTables.length > 0) {
+    console.warn(
+      `[Postgres] Terhubung ke "${status.database}", tapi tabel berikut belum ada: ${status.missingTables.join(", ")}. ` +
+        `Jalankan "npm run db:init" atau tempel database/supabase-schema-dan-data.sql di Supabase SQL Editor.`
+    );
+    return true;
+  }
+  console.log(`[Postgres] Koneksi berhasil. Database aktif: "${status.database}". Semua tabel terdeteksi.`);
+  return true;
 }
 
 // =====================================================================

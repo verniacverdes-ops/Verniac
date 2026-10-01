@@ -18,12 +18,10 @@
 // =====================================================================
 import { Router, type Request, type Response } from "express";
 import crypto from "crypto";
-import fs from "fs";
-import fsp from "fs/promises";
-import path from "path";
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, RowDataPacket } from "../config/database";
 import { rowToArchiveItem } from "../config/database";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth";
+import type { FileStorage } from "../storage/fileStorage";
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024; // 15MB, sama dengan batas yang ditulis di ArchiveFormModal.tsx
 
@@ -104,7 +102,7 @@ interface StoredPdfMeta {
  * user kalau validasi gagal.
  */
 async function persistPdfAttachment(
-  uploadsDir: string,
+  storage: FileStorage,
   input: PdfAttachmentInput
 ): Promise<StoredPdfMeta> {
   const dataUrl = input.fileData || "";
@@ -135,9 +133,7 @@ async function persistPdfAttachment(
   }
 
   const storedFileName = `${crypto.randomBytes(16).toString("hex")}.${attachmentType.ext}`;
-  const destination = path.join(uploadsDir, storedFileName);
-  await fsp.mkdir(uploadsDir, { recursive: true });
-  await fsp.writeFile(destination, buffer);
+  await storage.save(storedFileName, buffer, mime);
 
   return {
     fileName: input.fileName || `dokumen.${attachmentType.ext}`,
@@ -156,7 +152,7 @@ function safeParsePdfMeta(raw: any): StoredPdfMeta | null {
   return value as StoredPdfMeta;
 }
 
-export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
+export function createArsipRouter(pool: Pool, storage: FileStorage): Router {
   const router = Router();
 
   // Semua endpoint di bawah /api/arsip mewajibkan login (FASE 7) —
@@ -175,7 +171,7 @@ export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
       const params: any[] = [];
 
       if (search && typeof search === "string") {
-        sql += " AND (nomor_keputusan LIKE ? OR perihal LIKE ? OR no_dus LIKE ? OR lokasi_penyimpanan LIKE ?)";
+        sql += " AND (nomor_keputusan ILIKE ? OR perihal ILIKE ? OR no_dus ILIKE ? OR lokasi_penyimpanan ILIKE ?)";
         const q = `%${search}%`;
         params.push(q, q, q, q);
       }
@@ -235,7 +231,7 @@ export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
       let pdfMeta: StoredPdfMeta | null = null;
       if (pdfAttachment && pdfAttachment.fileData) {
         try {
-          pdfMeta = await persistPdfAttachment(uploadsDir, pdfAttachment);
+          pdfMeta = await persistPdfAttachment(storage, pdfAttachment);
         } catch (pdfErr: any) {
           return res.status(400).json({ status: "error", message: pdfErr.message });
         }
@@ -310,18 +306,14 @@ export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
         if (pdfAttachment === null) {
           nextPdfJson = null;
           if (previousPdfMeta) {
-            await fsp
-              .unlink(path.join(uploadsDir, previousPdfMeta.storedFileName))
-              .catch(() => {}); // file mungkin sudah tidak ada; abaikan
+            await storage.remove(previousPdfMeta.storedFileName).catch(() => {}); // file mungkin sudah tidak ada; abaikan
           }
         } else if (pdfAttachment && pdfAttachment.fileData) {
           try {
-            const pdfMeta = await persistPdfAttachment(uploadsDir, pdfAttachment);
+            const pdfMeta = await persistPdfAttachment(storage, pdfAttachment);
             nextPdfJson = JSON.stringify(pdfMeta);
             if (previousPdfMeta && previousPdfMeta.storedFileName !== pdfMeta.storedFileName) {
-              await fsp
-                .unlink(path.join(uploadsDir, previousPdfMeta.storedFileName))
-                .catch(() => {});
+              await storage.remove(previousPdfMeta.storedFileName).catch(() => {});
             }
           } catch (pdfErr: any) {
             return res.status(400).json({ status: "error", message: pdfErr.message });
@@ -425,7 +417,7 @@ export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
       // folder uploads/ tidak menumpuk file yatim.
       for (const row of toDelete) {
         const meta = safeParsePdfMeta(row.pdf_attachment);
-        if (meta) await fsp.unlink(path.join(uploadsDir, meta.storedFileName)).catch(() => {});
+        if (meta) await storage.remove(meta.storedFileName).catch(() => {});
       }
 
       res.json({
@@ -450,7 +442,7 @@ export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
       }
 
       const meta = rows[0] ? safeParsePdfMeta(rows[0].pdf_attachment) : null;
-      if (meta) await fsp.unlink(path.join(uploadsDir, meta.storedFileName)).catch(() => {});
+      if (meta) await storage.remove(meta.storedFileName).catch(() => {});
 
       res.json({ status: "success", message: "Data arsip dihapus permanen dari database" });
     } catch (err: any) {
@@ -478,8 +470,8 @@ export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
         return res.status(404).json({ status: "error", message: "Arsip ini belum memiliki lampiran digital." });
       }
 
-      const filePath = path.join(uploadsDir, meta.storedFileName);
-      if (!fs.existsSync(filePath)) {
+      const opened = await storage.open(meta.storedFileName);
+      if (!opened) {
         return res.status(404).json({
           status: "error",
           message: "Metadata lampiran ada di database, tapi berkas fisiknya tidak ditemukan di server.",
@@ -492,7 +484,8 @@ export function createArsipRouter(pool: Pool, uploadsDir: string): Router {
       res.setHeader("Content-Type", meta.mime || "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="${meta.fileName.replace(/"/g, "")}"`);
       res.setHeader("Cache-Control", "private, max-age=3600");
-      fs.createReadStream(filePath).pipe(res);
+      if (opened.size !== undefined) res.setHeader("Content-Length", String(opened.size));
+      opened.stream.pipe(res);
     } catch (err: any) {
       res.status(500).json({ status: "error", message: "Gagal mengambil berkas lampiran: " + err.message });
     }
@@ -516,7 +509,7 @@ export function createBackupRouter(pool: Pool): Router {
       const backupData = {
         version: "SI-PERTELAAN-ARSIP-2026-v2.0",
         timestamp: new Date().toISOString(),
-        database: process.env.DB_NAME || "daftar-pertelaan-arsip-2026",
+        database: "PostgreSQL (Supabase)",
         totalArchives: archives.length,
         archives,
       };
@@ -538,7 +531,7 @@ export function createBackupRouter(pool: Pool): Router {
 // supaya <iframe src="...?token=..."> tetap bisa membaca token dari
 // query string tanpa Express menolaknya sebelum handler ini sempat
 // memvalidasi sendiri.
-export function createDocumentRouter(pool: Pool, uploadsDir: string): Router {
+export function createDocumentRouter(pool: Pool, storage: FileStorage): Router {
   const router = Router();
 
   const handler = async (req: Request, res: Response) => {
@@ -562,15 +555,16 @@ export function createDocumentRouter(pool: Pool, uploadsDir: string): Router {
         return res.status(404).json({ status: "error", message: "Dokumen lampiran untuk arsip ini tidak ditemukan." });
       }
 
-      const filePath = path.join(uploadsDir, meta.storedFileName);
-      if (!fs.existsSync(filePath)) {
+      const opened = await storage.open(meta.storedFileName);
+      if (!opened) {
         return res.status(404).json({ status: "error", message: "Berkas fisik tidak ditemukan di server." });
       }
 
       res.setHeader("Content-Type", meta.mime || "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="${meta.fileName.replace(/"/g, "")}"`);
       res.setHeader("Cache-Control", "private, max-age=3600");
-      fs.createReadStream(filePath).pipe(res);
+      if (opened.size !== undefined) res.setHeader("Content-Length", String(opened.size));
+      opened.stream.pipe(res);
     } catch (err: any) {
       res.status(500).json({ status: "error", message: "Gagal mengambil dokumen: " + err.message });
     }

@@ -21,7 +21,7 @@
 // menurut matriks hak akses aplikasi).
 // =====================================================================
 import { Router, type Request, type Response } from "express";
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, RowDataPacket } from "../config/database";
 import crypto from "crypto";
 import { hashPassword } from "../config/auth";
 import { requireAuth, requireRole } from "../middleware/auth";

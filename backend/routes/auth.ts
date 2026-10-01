@@ -20,7 +20,7 @@
 //                             stateless / cuma "buang token di client".
 // =====================================================================
 import { Router, type Request, type Response } from "express";
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, RowDataPacket } from "../config/database";
 import crypto from "crypto";
 import { signToken, verifyPassword, hashPassword } from "../config/auth";
 import { requireAuth } from "../middleware/auth";
@@ -247,7 +247,7 @@ export function createAuthRouter(pool: Pool): Router {
       });
 
       await pool.query(
-        "INSERT IGNORE INTO token_blacklist (jti, expires_at) VALUES (?, FROM_UNIXTIME(?))",
+        "INSERT INTO token_blacklist (jti, expires_at) VALUES (?, to_timestamp(?) AT TIME ZONE 'UTC') ON CONFLICT (jti) DO NOTHING",
         [req.user!.jti, req.user!.exp]
       );
 

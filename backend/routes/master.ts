@@ -21,7 +21,7 @@
 // kode CRUD yang nyaris identik) supaya konsisten & lebih mudah dirawat.
 // =====================================================================
 import { Router, type Request, type Response } from "express";
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, RowDataPacket } from "../config/database";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 // Peran yang boleh mengubah data master (selaras dengan manajemen data
