@@ -197,7 +197,22 @@ export default function App() {
   const [apiConfig, setApiConfig] = useState<ApiConfig>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_API_CONFIG);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const cfg = JSON.parse(saved);
+        // Konfigurasi lama yang tersimpan di browser bisa masih menunjuk ke
+        // http://localhost:3000/api. Di website online (bukan localhost) itu
+        // pasti gagal ("Failed to fetch"), jadi diganti ke alamat relatif
+        // /api yang selalu mengarah ke server yang sama dengan halaman ini.
+        const onLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        if (
+          !onLocalhost &&
+          typeof cfg?.apiUrl === 'string' &&
+          /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(cfg.apiUrl)
+        ) {
+          cfg.apiUrl = '/api';
+        }
+        return cfg;
+      }
     } catch (e) {
       console.error('Failed to parse API config:', e);
     }
@@ -207,7 +222,9 @@ export default function App() {
       // yang dipilih user tetap gagal connect. Sekarang default AKTIF
       // karena backend + MySQL sudah siap (FASE 1-3).
       useLaravelApi: true,
-      apiUrl: 'http://localhost:3000/api',
+      // Alamat relatif: di komputer sendiri (npm run dev) maupun di Vercel,
+      // API selalu satu alamat dengan halaman web ini.
+      apiUrl: '/api',
       bearerToken: '',
     };
   });
